@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نظام حضور الموظفين</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Tahoma, Arial, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 25px auto;
+      background: white;
+      padding: 22px;
+      border-radius: 16px;
+      box-shadow: 0 4px 18px #00000012;
+    }
+
+    h2 {
+      text-align: center;
+      color: #1e3a8a;
+      margin-top: 0;
+    }
+
+    #reader {
+      width: 100%;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 10px;
+      background: #1e3a8a;
+      color: white;
+      font-size: 17px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .6; }
+
+    .status {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 10px;
+      text-align: center;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .waiting { background: #f1f5f9; color: #475569; }
+    .success { background: #dcfce7; color: #166534; }
+    .error { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <h2>قارئ QR للموظفين</h2>
+
+  <div id="reader"></div>
+
+  <div id="status" class="status waiting">
+    اضغط تشغيل الكاميرا للبدء
+  </div>
+
+  <button id="startButton" onclick="startScanner()">
+    تشغيل الكاميرا
+  </button>
+
+</div>
+
+<script>
+  const API_URL =
+    'https://script.google.com/macros/s/AKfycbxhkdZTRQ-Kge2RKAuiRjx4ccDuPGnALKq6J8ERfc5JAshIa-QIIGx77M7DAxFvUba2/exec';
+
+  let scanner = null;
+  let processing = false;
+  let lastCode = '';
+  let lastTime = 0;
+
+  function showStatus(type, message) {
+    const box = document.getElementById('status');
+    box.className = 'status ' + type;
+    box.textContent = message;
+  }
+
+  async function startScanner() {
+    const button = document.getElementById('startButton');
+
+    if (typeof Html5Qrcode === 'undefined') {
+      showStatus('error', 'تعذر تحميل مكتبة قارئ QR. تحقق من الإنترنت.');
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'جاري تشغيل الكاميرا...';
+
+    try {
+      scanner = new Html5Qrcode('reader');
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        onScanSuccess
+      );
+
+      showStatus('success', 'الكاميرا تعمل. وجّهها نحو بطاقة الموظف.');
+      button.style.display = 'none';
+
+    } catch (error) {
+      scanner = null;
+      button.disabled = false;
+      button.textContent = 'إعادة تشغيل الكاميرا';
+
+      showStatus(
+        'error',
+        'تعذر تشغيل الكاميرا:\n' +
+        (error.message || String(error))
+      );
+    }
+  }
+
+  function onScanSuccess(decodedText) {
+    const now = Date.now();
+
+    if (processing) return;
+    if (decodedText === lastCode && now - lastTime < 3000) return;
+
+    processing = true;
+    lastCode = decodedText;
+    lastTime = now;
+
+    showStatus('waiting', 'تمت قراءة الرمز، جارٍ تسجيل الحضور...');
+
+    const callbackName =
+      'attendanceCallback_' + Date.now() + '_' +
+      Math.floor(Math.random() * 100000);
+
+    const script = document.createElement('script');
+
+    const timeout = setTimeout(function() {
+      cleanup();
+      showStatus('error', 'انتهت مهلة الاتصال. حاول مرة أخرى.');
+      processing = false;
+    }, 15000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[callbackName];
+      script.remove();
+    }
+
+    window[callbackName] = function(result) {
+      cleanup();
+
+      if (result && result.ok) {
+        const message =
+          (result.duplicate
+            ? 'الحضور مسجل مسبقاً'
+            : 'تم تسجيل الحضور بنجاح') +
+          '\nاسم الموظف: ' + result.name +
+          '\nالرقم الوظيفي: ' + result.employeeID +
+          '\nوقت الحضور: ' + result.arrivalTime +
+          '\nالحالة: ' + result.status;
+
+        showStatus(
+          result.duplicate ? 'waiting' : 'success',
+          message
+        );
+      } else {
+        showStatus(
+          'error',
+          result && result.message
+            ? result.message
+            : 'تعذر تسجيل الحضور'
+        );
+      }
+
+      setTimeout(function() {
+        processing = false;
+      }, 1500);
+    };
+
+    script.onerror = function() {
+      cleanup();
+      showStatus('error', 'تعذر الاتصال بخدمة تسجيل الحضور.');
+      processing = false;
+    };
+
+    script.src =
+      API_URL +
+      '?action=scan' +
+      '&token=' + encodeURIComponent(decodedText) +
+      '&callback=' + encodeURIComponent(callbackName);
+
+    document.body.appendChild(script);
+  }
+</script>
+
+</body>
+</html>
