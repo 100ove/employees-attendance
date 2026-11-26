@@ -238,15 +238,25 @@
   }
 
   function formatArrivalTime12(timeValue) {
-    const match = String(timeValue || '').match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?$/);
+    const raw = String(timeValue || '').trim();
+    const match = raw.match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?\\s*(AM?|PM?)?$/i);
     if (!match) return timeValue;
 
-    const hour24 = Number(match[1]);
-    if (hour24 < 0 || hour24 > 23) return timeValue;
+    let hour = Number(match[1]);
+    const minutes = match[2];
+    const period = (match[3] || '').toUpperCase();
 
-    const period = hour24 >= 12 ? 'PM' : 'AM';
-    const hour12 = hour24 % 12 || 12;
-    return String(hour12).padStart(2, '0') + ':' + match[2] + ' ' + period;
+    if (period) {
+      if (hour < 1 || hour > 12) return timeValue;
+      if (period.startsWith('P') && hour !== 12) hour += 12;
+      if (period.startsWith('A') && hour === 12) hour = 0;
+    } else if (hour < 0 || hour > 23) {
+      return timeValue;
+    }
+
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return String(hour12).padStart(2, '0') + ':' + minutes + ' ' + suffix;
   }
 
   async function startScanner() {
