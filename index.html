@@ -1,17 +1,17 @@
 
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#142b4a">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="قارئ QR">
+  <meta name="apple-mobile-web-app-title" content="QR Attendance">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/100ove/employees-attendance/main/watermarked_img_6493403581545221552%20%282%29.webp">
-  <title>قارئ QR للموظفين Out Sources</title>
+  <title>QR Attendance Reader | Consumer Services</title>
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
@@ -84,6 +84,15 @@
       font-weight: 800;
       letter-spacing: -.5px;
       line-height: 1.6;
+    }
+
+    .department {
+      margin: -18px 0 24px;
+      color: var(--teal);
+      text-align: center;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .4px;
     }
 
     h2::after {
@@ -197,17 +206,18 @@
 <body>
 <div class="container">
 
-  <img class="company-logo" src="https://raw.githubusercontent.com/100ove/employees-attendance/main/watermarked_img_6493403581545221552%20%282%29.webp" alt="شعار الشركة">
-  <h2>قارئ QR للموظفين Out Sources</h2>
+  <img class="company-logo" src="https://raw.githubusercontent.com/100ove/employees-attendance/main/watermarked_img_6493403581545221552%20%282%29.webp" alt="Company logo">
+  <h2>QR Attendance Reader</h2>
+  <div class="department">Consumer Services</div>
 
   <div id="reader"></div>
 
   <div id="status" class="status waiting">
-    اضغط تشغيل الكاميرا للبدء
+    Press Start Camera to begin
   </div>
 
   <button id="startButton" onclick="startScanner()">
-    تشغيل الكاميرا
+    Start Camera
   </button>
 
 </div>
@@ -231,12 +241,12 @@
     const button = document.getElementById('startButton');
 
     if (typeof Html5Qrcode === 'undefined') {
-      showStatus('error', 'تعذر تحميل مكتبة قارئ QR. تحقق من الإنترنت.');
+      showStatus('error', 'Unable to load the QR scanner library. Check your internet connection.');
       return;
     }
 
     button.disabled = true;
-    button.textContent = 'جاري تشغيل الكاميرا...';
+    button.textContent = 'Starting camera...';
 
     try {
       scanner = new Html5Qrcode('reader');
@@ -250,17 +260,17 @@
         onScanSuccess
       );
 
-      showStatus('success', 'الكاميرا تعمل. وجّهها نحو بطاقة الموظف.');
+      showStatus('success', 'Camera is active. Point it at the employee QR code.');
       button.style.display = 'none';
 
     } catch (error) {
       scanner = null;
       button.disabled = false;
-      button.textContent = 'إعادة تشغيل الكاميرا';
+      button.textContent = 'Restart Camera';
 
       showStatus(
         'error',
-        'تعذر تشغيل الكاميرا:\n' +
+        'Unable to start the camera:\n' +
         (error.message || String(error))
       );
     }
@@ -276,7 +286,7 @@
     lastCode = decodedText;
     lastTime = now;
 
-    showStatus('waiting', 'تمت قراءة الرمز، جارٍ تسجيل الحضور...');
+    showStatus('waiting', 'Code scanned. Recording attendance...');
 
     const callbackName =
       'attendanceCallback_' + Date.now() + '_' +
@@ -286,7 +296,7 @@
 
     const timeout = setTimeout(function() {
       cleanup();
-      showStatus('error', 'انتهت مهلة الاتصال. حاول مرة أخرى.');
+      showStatus('error', 'Connection timed out. Please try again.');
       processing = false;
     }, 15000);
 
@@ -302,12 +312,12 @@
       if (result && result.ok) {
         const message =
           (result.duplicate
-            ? 'الحضور مسجل مسبقاً'
-            : 'تم تسجيل الحضور بنجاح') +
-          '\nاسم الموظف: ' + result.name +
-          '\nالرقم الوظيفي: ' + result.employeeID +
-          '\nوقت الحضور: ' + result.arrivalTime +
-          '\nالحالة: ' + result.status;
+            ? 'Attendance already recorded'
+            : 'تم تسجيل الحضور') +
+          '\nEmployee name: ' + result.name +
+          '\nEmployee ID: ' + result.employeeID +
+          '\nArrival time: ' + result.arrivalTime +
+          '\nStatus: ' + result.status;
 
         showStatus(
           result.duplicate ? 'waiting' : 'success',
@@ -318,7 +328,7 @@
           'error',
           result && result.message
             ? result.message
-            : 'تعذر تسجيل الحضور'
+            : 'Unable to record attendance'
         );
       }
 
@@ -329,7 +339,7 @@
 
     script.onerror = function() {
       cleanup();
-      showStatus('error', 'تعذر الاتصال بخدمة تسجيل الحضور.');
+      showStatus('error', 'Unable to connect to the attendance service.');
       processing = false;
     };
 
