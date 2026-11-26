@@ -4,6 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142b4a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="قارئ QR">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/100ove/employees-attendance/main/watermarked_img_6493403581545221552%20%282%29.webp">
   <title>قارئ QR للموظفين Out Sources</title>
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -333,6 +340,16 @@
       '&callback=' + encodeURIComponent(callbackName);
 
     document.body.appendChild(script);
+  }
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./service-worker.js').catch(function (error) {
+        console.warn('تعذر تسجيل service worker:', error);
+      });
+    });
   }
 </script>
 
